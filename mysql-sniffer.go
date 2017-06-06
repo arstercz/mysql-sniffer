@@ -116,6 +116,7 @@ func UnixNow() int64 {
 
 func main() {
 	var lport *int = flag.Int("P", 3306, "MySQL port to use")
+	var lfilter *string = flag.String("F", "", "extra tcpdump filter rule")
 	var eth *string = flag.String("i", "eth0", "Interface to sniff")
 	var ldirty *bool = flag.Bool("u", false, "Unsanitized -- do not canonicalize queries")
 	var period *int = flag.Int("t", 10, "Seconds between outputting status")
@@ -147,7 +148,11 @@ func main() {
 		log.Fatalf("Failed to open device: %s", msg)
 	}
 
-	err = iface.Setfilter(fmt.Sprintf("tcp port %d", port))
+	set_filters := fmt.Sprintf("tcp port %d", port)
+	if len(*lfilter) > 0 {
+		set_filters = set_filters + " and " + *lfilter
+	}
+	err = iface.Setfilter(set_filters)
 	if err != nil {
 		log.Fatalf("Failed to set port filter: %s", err.Error())
 	}
@@ -163,7 +168,7 @@ func main() {
 			// simple output printer... this should be super fast since we expect that a
 			// system like this will have relatively few unique queries once they're
 			// canonicalized.
-			if !verbose && querycount%1000 == 0 && last < UnixNow()-int64(*period) {
+			if !verbose && querycount%10 == 0 && last < UnixNow()-int64(*period) {
 				last = UnixNow()
 				handleStatusUpdate(*displaycount, *sortby, *cutoff)
 			}
@@ -216,7 +221,9 @@ func handleStatusUpdate(displaycount int, sortby string, cutoff int) {
 	log.Printf("%0.2fms min / %0.2fms avg / %0.2fms max query times", gmin, gavg, gmax)
 	log.Printf("%d unique results in this filter", len(qbuf))
 	log.Printf(" ")
-	log.Printf("%s count     %sqps     %s  min    avg   max      %sbytes      per qry%s",
+	log.Printf("%s [total]           %s  [ms]   [ms]   [ms]    %s [total]%s",
+		COLOR_YELLOW, COLOR_YELLOW, COLOR_GREEN, COLOR_DEFAULT)
+	log.Printf("%s count     %sqps     %s  min    avg    max     %s  bytes           per      qry%s",
 		COLOR_YELLOW, COLOR_CYAN, COLOR_YELLOW, COLOR_GREEN, COLOR_DEFAULT)
 
 	// we cheat so badly here...
@@ -242,7 +249,7 @@ func handleStatusUpdate(displaycount int, sortby string, cutoff int) {
 		}
 
 		tmp = append(tmp, sortable{sorted, fmt.Sprintf(
-			"%s%6d  %s%7.2f/s  %s%6.2f %6.2f %6.2f  %s%9db %6db %s%s%s",
+			"%s%6d  %s%7.2f/s  %s%6.2f %6.2f %6.2f  %s%10dbytes %7dbytes  %s%s%s",
 			COLOR_YELLOW, c.count, COLOR_CYAN, qps, COLOR_YELLOW, qmin, qavg, qmax,
 			COLOR_GREEN, c.bytes, bavg, COLOR_WHITE, q, COLOR_DEFAULT)})
 	}
