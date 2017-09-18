@@ -324,6 +324,10 @@ func processPacket(rs *source, request bool, data []byte) {
 	if ptype == -1 {
 		return
 	}
+	// skip not COM_FILED_LIST status
+	if ptype == 4 {
+		return
+	}
 	plen := uint64(len(pdata))
 
 	// If this is a response then we want to record the timing and
