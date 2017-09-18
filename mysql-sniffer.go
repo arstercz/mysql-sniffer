@@ -41,14 +41,6 @@ const (
 	// Internal tuning
 	TIME_BUCKETS = 10000
 
-	// ANSI colors
-	COLOR_RED     = "\x1b[31m"
-	COLOR_GREEN   = "\x1b[32m"
-	COLOR_YELLOW  = "\x1b[33m"
-	COLOR_CYAN    = "\x1b[36m"
-	COLOR_WHITE   = "\x1b[37m"
-	COLOR_DEFAULT = "\x1b[39m"
-
 	// MySQL packet types
 	COM_QUERY = 3
 
@@ -59,6 +51,14 @@ const (
 	F_SOURCE
 	F_SOURCEIP
 )
+
+// ANSI colors
+var COLOR_RED string = "\x1b[31m"
+var COLOR_GREEN string = "\x1b[32m"
+var COLOR_YELLOW string = "\x1b[33m"
+var COLOR_CYAN string = "\x1b[36m"
+var COLOR_WHITE string = "\x1b[37m"
+var COLOR_DEFAULT string = "\x1b[39m"
 
 type packet struct {
 	request bool // request or response
@@ -99,6 +99,7 @@ var noclean bool = false
 var dirty bool = false
 var format []interface{}
 var port uint16
+var iscolor bool = false
 var times [TIME_BUCKETS]uint64
 
 var stats struct {
@@ -126,6 +127,7 @@ func main() {
 	var formatstr *string = flag.String("f", "#s:#q", "Format for output aggregation")
 	var sortby *string = flag.String("s", "count", "Sort by: count, max, avg, maxbytes, avgbytes")
 	var cutoff *int = flag.Int("c", 0, "Only show queries over count/second")
+	var coloroff *bool = flag.Bool("y", false, "open the color when print queries")
 	flag.Parse()
 
 	verbose = *doverbose
@@ -134,6 +136,16 @@ func main() {
 	dirty = *ldirty
 	parseFormat(*formatstr)
 	rand.Seed(time.Now().UnixNano())
+
+	iscolor = *coloroff
+	if !iscolor {
+		COLOR_RED = "\x1b[39m"
+		COLOR_GREEN = "\x1b[39m"
+		COLOR_YELLOW = "\x1b[39m"
+		COLOR_CYAN = "\x1b[39m"
+		COLOR_WHITE = "\x1b[39m"
+		COLOR_DEFAULT = "\x1b[39m"
+	}
 
 	log.SetPrefix("")
 	log.SetFlags(0)
@@ -343,7 +355,8 @@ func processPacket(rs *source, request bool, data []byte) {
 
 		// If we're in verbose mode, just dump statistics from this one.
 		if verbose && len(rs.qtext) > 0 {
-			log.Printf("    %s%s %s## %sbytes: %d time: %0.2f%s\n", COLOR_GREEN, rs.qtext, COLOR_RED,
+			log.SetFlags(log.Ldate | log.Lmicroseconds)
+			log.Printf("  %s%s %s## %sbytes: %d time: %0.2f%s\n", COLOR_GREEN, rs.qtext, COLOR_RED,
 				COLOR_YELLOW, rs.qbytes, float64(reqtime)/1000000, COLOR_DEFAULT)
 		}
 
