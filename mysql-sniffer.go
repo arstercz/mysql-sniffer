@@ -96,7 +96,6 @@ var querycount int
 var chmap map[string]*source = make(map[string]*source)
 var verbose bool = false
 var noclean bool = false
-var dirty bool = false
 var format []interface{}
 var port uint16
 var iscolor bool = false
@@ -119,7 +118,6 @@ func main() {
 	var lport *int = flag.Int("P", 3306, "MySQL port to use")
 	var lfilter *string = flag.String("F", "", "extra tcpdump filter rule")
 	var eth *string = flag.String("i", "eth0", "Interface to sniff")
-	var ldirty *bool = flag.Bool("u", false, "Unsanitized -- do not canonicalize queries")
 	var period *int = flag.Int("t", 10, "Seconds between outputting status")
 	var displaycount *int = flag.Int("d", 15, "Display this many queries in status updates")
 	var doverbose *bool = flag.Bool("v", false, "Print every query received (spammy)")
@@ -133,7 +131,6 @@ func main() {
 	verbose = *doverbose
 	noclean = *nocleanquery
 	port = uint16(*lport)
-	dirty = *ldirty
 	parseFormat(*formatstr)
 	rand.Seed(time.Now().UnixNano())
 
@@ -361,13 +358,6 @@ func processPacket(rs *source, request bool, data []byte) {
 		}
 		rs.reqSent = nil
 
-		// If we're in verbose mode, just dump statistics from this one.
-		if verbose && rs.qbytes > 0 {
-			log.SetFlags(log.Ldate | log.Lmicroseconds)
-			log.Printf("  %s%s %s## %sbytes: %d time: %0.2f%s\n", COLOR_CYAN, rs.qtext, COLOR_RED,
-				COLOR_YELLOW, rs.qbytes, float64(reqtime)/1000000, COLOR_DEFAULT)
-		}
-
 		return
 	}
 
@@ -390,11 +380,7 @@ func processPacket(rs *source, request bool, data []byte) {
 			case F_NONE:
 				log.Fatalf("F_NONE in format string")
 			case F_QUERY:
-				if dirty {
-					text += string(pdata)
-				} else {
-					text += cleanupQuery(pdata)
-				}
+				text += cleanupQuery(pdata)
 			case F_ROUTE:
 				// Routes are in the query like:
 				//     SELECT /* hostname:route */ FROM ...
@@ -430,6 +416,14 @@ func processPacket(rs *source, request bool, data []byte) {
 	qdata.count++
 	qdata.bytes += plen
 	rs.qtext, rs.qdata, rs.qbytes = text, qdata, plen
+
+	// If we're in diry mode, just dump statistics from this one.
+	if verbose && rs.qbytes > 0 {
+		log.SetFlags(log.Ldate | log.Lmicroseconds)
+		log.Printf("  %s%s %s## %sbytes: %d time: %0.2f%s\n", COLOR_CYAN, rs.qtext, COLOR_RED,
+			COLOR_YELLOW, rs.qbytes, float64(reqtime)/1000000, COLOR_DEFAULT)
+	}
+
 }
 
 // carvePacket tries to pull a packet out of a slice of bytes. If so, it removes
