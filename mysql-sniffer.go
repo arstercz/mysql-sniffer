@@ -20,10 +20,10 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"github.com/akrennmair/gopcap"
-	_ "github.com/davecgh/go-spew/spew"
 	"log"
 	"math/rand"
 	"sort"
@@ -328,6 +328,10 @@ func processPacket(rs *source, request bool, data []byte) {
 	if ptype == 4 {
 		return
 	}
+	// skip invalid type, see src/include/my_command.h
+	if ptype > 32 {
+		return
+	}
 	plen := uint64(len(pdata))
 
 	// If this is a response then we want to record the timing and
@@ -445,6 +449,20 @@ func carvePacket(buf *[]byte) (int, []byte) {
 	end := size + 4
 	ptype := int((*buf)[4])
 	data := (*buf)[5 : size+4]
+
+	// change user type
+	if ptype == 17 {
+		pos := bytes.IndexByte((*buf)[5:], 0)
+		pos += 5
+		username := (*buf)[5:pos]
+		pos += 1
+		authLen := int((*buf)[pos])
+		pos += authLen
+		pos2 := bytes.IndexByte((*buf)[pos+1:], 0) // schema length
+		schema := (*buf)[pos+1 : pos+pos2]
+		data = []byte(fmt.Sprintf("change user '%s' on '%s'", string(username), string(schema)))
+	}
+
 	if end >= datalen {
 		*buf = nil
 	} else {
