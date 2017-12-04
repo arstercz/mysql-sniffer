@@ -330,6 +330,10 @@ func processPacket(rs *source, request bool, data []byte) {
 		return
 	}
 	plen := uint64(len(pdata))
+	// skip zero lengh query
+	if plen == 0 {
+		return
+	}
 
 	// If this is a response then we want to record the timing and
 	// store it with this channel so we can keep track of that.
@@ -418,7 +422,7 @@ func processPacket(rs *source, request bool, data []byte) {
 	rs.qtext, rs.qdata, rs.qbytes = text, qdata, plen
 
 	// If we're in diry mode, just dump statistics from this one.
-	if verbose && rs.qbytes > 0 {
+	if verbose {
 		log.SetFlags(log.Ldate | log.Lmicroseconds)
 		log.Printf("  %s%s %s## %sbytes: %d time: %0.2f%s\n", COLOR_CYAN, rs.qtext, COLOR_RED,
 			COLOR_YELLOW, rs.qbytes, float64(reqtime)/1000000, COLOR_DEFAULT)
@@ -444,6 +448,10 @@ func carvePacket(buf *[]byte) (int, []byte) {
 	ptype := int((*buf)[4])
 	data := (*buf)[5 : size+4]
 
+	// PING
+	if ptype == 14 {
+		data = []byte("PING")
+	}
 	// change user type
 	if ptype == 17 {
 		pos := bytes.IndexByte((*buf)[5:], 0)
