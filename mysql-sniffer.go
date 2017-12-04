@@ -358,9 +358,9 @@ func processPacket(rs *source, request bool, data []byte) {
 		rs.reqSent = nil
 
 		// If we're in verbose mode, just dump statistics from this one.
-		if verbose && len(rs.qtext) > 0 {
+		if verbose && rs.qbytes > 0 {
 			log.SetFlags(log.Ldate | log.Lmicroseconds)
-			log.Printf("  %s%s %s## %sbytes: %d time: %0.2f%s\n", COLOR_GREEN, rs.qtext, COLOR_RED,
+			log.Printf("  %s%s %s## %sbytes: %d time: %0.2f%s\n", COLOR_CYAN, rs.qtext, COLOR_RED,
 				COLOR_YELLOW, rs.qbytes, float64(reqtime)/1000000, COLOR_DEFAULT)
 		}
 
