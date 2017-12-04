@@ -85,6 +85,7 @@ type source struct {
 }
 
 type queryData struct {
+	ptype int
 	count uint64
 	bytes uint64
 	times [TIME_BUCKETS]uint64
@@ -232,7 +233,7 @@ func handleStatusUpdate(displaycount int, sortby string, cutoff int) {
 	log.Printf(" ")
 	log.Printf("%s [total]           %s  [ms]   [ms]   [ms]    %s [total]%s",
 		COLOR_YELLOW, COLOR_YELLOW, COLOR_GREEN, COLOR_DEFAULT)
-	log.Printf("%s count     %sqps     %s  min    avg    max     %s  bytes           per      qry%s",
+	log.Printf("%s count     %sqps     %s  min    avg    max       %sbytes         per      type  %sqry",
 		COLOR_YELLOW, COLOR_CYAN, COLOR_YELLOW, COLOR_GREEN, COLOR_DEFAULT)
 
 	// we cheat so badly here...
@@ -258,9 +259,9 @@ func handleStatusUpdate(displaycount int, sortby string, cutoff int) {
 		}
 
 		tmp = append(tmp, sortable{sorted, fmt.Sprintf(
-			"%s%6d  %s%7.2f/s  %s%6.2f %6.2f %6.2f  %s%10dbytes %7dbytes  %s%s%s",
+			"%s%6d  %s%7.2f/s  %s%6.2f %6.2f %6.2f  %s%8dbytes %7dbytes %3d   %s%s%s",
 			COLOR_YELLOW, c.count, COLOR_CYAN, qps, COLOR_YELLOW, qmin, qavg, qmax,
-			COLOR_GREEN, c.bytes, bavg, COLOR_WHITE, q, COLOR_DEFAULT)})
+			COLOR_GREEN, c.bytes, bavg, c.ptype, COLOR_WHITE, q, COLOR_DEFAULT)})
 	}
 	sort.Sort(tmp)
 
@@ -306,10 +307,12 @@ func processPacket(rs *source, request bool, data []byte) {
 		ptype, pdata = 0, data
 	}
 
+	//log.Printf("xxxxxx: type: %d, qtext: %s", ptype, string(pdata))
 	// The synchronization logic: if we're not presently, then we want to
 	// keep going until we are capable of carving off of a request/query.
 	if !rs.synced {
-		if !(request && ptype == COM_QUERY) {
+		//if !(request && ptype == COM_QUERY) {
+		if !(request) {
 			rs.reqbuffer, rs.resbuffer = nil, nil
 			return
 		}
@@ -419,13 +422,14 @@ func processPacket(rs *source, request bool, data []byte) {
 	}
 	qdata.count++
 	qdata.bytes += plen
+	qdata.ptype = ptype
 	rs.qtext, rs.qdata, rs.qbytes = text, qdata, plen
 
 	// If we're in diry mode, just dump statistics from this one.
 	if verbose {
 		log.SetFlags(log.Ldate | log.Lmicroseconds)
-		log.Printf("  %s%s %s## %sbytes: %d time: %0.2f%s\n", COLOR_CYAN, rs.qtext, COLOR_RED,
-			COLOR_YELLOW, rs.qbytes, float64(reqtime)/1000000, COLOR_DEFAULT)
+		log.Printf("  %s%s %s## %stype: %d, bytes: %d, time: %0.2f%s\n", COLOR_CYAN, rs.qtext, COLOR_RED,
+			COLOR_YELLOW, ptype, rs.qbytes, float64(reqtime)/1000000, COLOR_DEFAULT)
 	}
 
 }
@@ -448,11 +452,27 @@ func carvePacket(buf *[]byte) (int, []byte) {
 	ptype := int((*buf)[4])
 	data := (*buf)[5 : size+4]
 
+	// QUIT
+	if ptype == 1 {
+		data = []byte("COM_QUIT")
+	}
+	// STATISTICS
+	if ptype == 9 {
+		data = []byte("COM_STATISTICS")
+	}
+	// DEBUG
+	if ptype == 13 {
+		data = []byte("COM_DEBUG")
+	}
 	// PING
 	if ptype == 14 {
-		data = []byte("PING")
+		data = []byte("COM_PING")
 	}
-	// change user type
+	// TIME
+	if ptype == 15 {
+		data = []byte("COM_TIME")
+	}
+	// CHANGE USER
 	if ptype == 17 {
 		pos := bytes.IndexByte((*buf)[5:], 0)
 		pos += 5
@@ -465,6 +485,14 @@ func carvePacket(buf *[]byte) (int, []byte) {
 		data = []byte(fmt.Sprintf("change user '%s' on '%s'", string(username), string(schema)))
 	}
 
+	// RESET CONNECTION
+	if ptype == 31 {
+		data = []byte("COM_RESET_CONNECTION")
+	}
+	// CONNECT
+	if ptype == 133 {
+		data = []byte("USER CONNECT")
+	}
 	if end >= datalen {
 		*buf = nil
 	} else {
