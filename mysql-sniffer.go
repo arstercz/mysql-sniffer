@@ -137,12 +137,12 @@ func main() {
 
 	iscolor = *coloroff
 	if !iscolor {
-		COLOR_RED = "\x1b[39m"
-		COLOR_GREEN = "\x1b[39m"
-		COLOR_YELLOW = "\x1b[39m"
-		COLOR_CYAN = "\x1b[39m"
-		COLOR_WHITE = "\x1b[39m"
-		COLOR_DEFAULT = "\x1b[39m"
+		COLOR_RED = ""
+		COLOR_GREEN = ""
+		COLOR_YELLOW = ""
+		COLOR_CYAN = ""
+		COLOR_WHITE = ""
+		COLOR_DEFAULT = ""
 	}
 
 	log.SetPrefix("")
