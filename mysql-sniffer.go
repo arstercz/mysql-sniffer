@@ -676,7 +676,9 @@ func cleanupQuery(query []byte) string {
 		}
 	}
 
-	return strings.Replace(tmp, "?, ", "", -1)
+	//replace the list ?
+	rep := strings.NewReplacer(", ?", "", ",?", "")
+	return rep.Replace(tmp)
 }
 
 // parseFormat takes a string and parses it out into the given format slice
