@@ -123,7 +123,7 @@ func main() {
 	var displaycount *int = flag.Int("d", 15, "Display this many queries in status updates")
 	var doverbose *bool = flag.Bool("v", false, "Print every query received (spammy)")
 	var nocleanquery *bool = flag.Bool("n", false, "no clean queries")
-	var formatstr *string = flag.String("f", "#s:#q", "Format for output aggregation")
+	var formatstr *string = flag.String("f", "#s:#q", "Format for output aggregation, s: SOURCE(IP:PORT), i:SOURCEIP, r: ROUTE, q: QUERY")
 	var sortby *string = flag.String("s", "count", "Sort by: count, max, avg, maxbytes, avgbytes")
 	var cutoff *int = flag.Int("c", 0, "Only show queries over count/second")
 	var coloroff *bool = flag.Bool("y", false, "open the color when print queries")
